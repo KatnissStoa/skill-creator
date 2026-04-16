@@ -4,9 +4,19 @@ description: Guide for creating or updating skills that extend an agent's capabi
 license: Complete terms in LICENSE.txt
 ---
 
-# Skill Creator
+# Skill authoring
 
-This skill provides guidance for creating effective skills.
+This document guides you through creating effective skills.
+
+## User-facing communication (required)
+
+When talking to the user—especially when they ask to **create**, **design**, or **improve** a skill (e.g. “help me create a skill”):
+
+- **Never** say you are loading, invoking, switching to, or using a named skill or workflow package. Do not name this guidance, its folder, or any skill identifier (e.g. phrases like “load skill creator”, “using Skill Creator”, “the skill-creator skill”, “I’ve activated …”).
+- **Never** explain *which* internal resource you are following—only *what* you will do for them next.
+- **Do** use plain language: walk through design choices, ask brief clarifying questions **only when the request is underspecified**, scaffold files, and describe steps as normal assistant work (“I’ll help you structure this”, “Here’s the next step”).
+
+These rules apply to every step below; they do not change the technical workflow, only how you frame it to the user.
 
 ## About Skills
 
@@ -52,6 +62,19 @@ skill-name/
 
 Avoid duplication: information lives in SKILL.md OR references, not both. Do NOT include README.md or CHANGELOG.md.
 
+## Security (required)
+
+Before you **initialize**, **merge**, or **deliver** any skill, apply `references/security-vetting.md`. There are two entry paths:
+
+1. **Imported skill** — User uploads a package (folder/zip) or gives a downloadable link/repo to adopt.
+   - Obtain and read all files; run `scripts/security_scan.py` on the extracted skill directory when it exists on disk.
+   - Produce the vetting report format from that reference. If risk is not clearly **LOW**, or red flags remain, **tell the user what is wrong** and **ask whether they still want to create/adopt** the skill. Do not run `init_skill.py` or copy their tree into a new skill until they explicitly confirm (or they withdraw).
+2. **Authored in chat** — No import; you draft the skill from the conversation.
+   - After the draft exists as files, run the same review and `security_scan.py` when applicable.
+   - If you find issues, **fix the artifact yourself** (remove exfiltration, narrow scope, replace dangerous instructions with safe, explicit steps), re-scan or re-read, then deliver the **final** content. Only ask the user if fixing would **change the stated purpose** in a way they must choose (e.g. removing a feature).
+
+Do not name internal policy files to the user; just do the review and describe findings in plain language.
+
 ### Progressive Disclosure
 
 Three-level loading: Metadata (~100 words) → SKILL.md body (<500 lines) → Bundled resources (as needed).
@@ -92,13 +115,22 @@ If uncertain, see `references/scenario-routing.md` for the full decision tree, k
 
 All paths in the steps below (e.g. `scripts/init_skill.py`, `references/workflows.md`) are **relative to this skill's root directory** — the directory where this SKILL.md is located. Resolve them from that base before executing.
 
+0. **Security gate** — If the user brought an external skill (upload or URL), vet **before** scaffolding or merging (see **Security (required)** and `references/security-vetting.md`). If they confirm despite warnings, proceed. If the skill is only authored in chat, vet and remediate **before** final delivery (same reference).
+
 1. **Route** — identify the design pattern
-2. **Understand** — gather concrete examples
+2. **Understand** — gather concrete examples from the user’s description and/or from supplied files or fetched content (see Step 2); skip extra requirement questions when already specified
 3. **Plan** — decide reusable contents based on the pattern
 4. **Initialize** — scaffold the skill
 5. **Edit** — implement resources and write SKILL.md
 6. **Validate** — run checks and deliver
 7. **Iterate** — improve from real usage
+
+### Step 0: Security gate
+
+Follow **Security (required)** and `references/security-vetting.md` at the appropriate time:
+
+- **Imported skill** — Complete source review and user confirmation (if needed) **before** Step 4.
+- **Authored in chat** — Run full vetting and remediation **before** final delivery in Step 6.
 
 ### Step 1: Route to Design Pattern
 
@@ -113,7 +145,15 @@ Do NOT ask the user to confirm the pattern choice — decide based on signals an
 
 ### Step 2: Understand the Skill
 
-MUST ask the user one brief clarification question before proceeding. Keep it short and easy to answer. Combine at most 2 key unknowns into a single message. Always end with: *"Or just say 'go' and I'll generate with sensible defaults."*
+**Skip requirement clarification when the user already gave enough to proceed.** Go straight to Step 3 (Plan)—and run Step 0 (Security) on schedule when importing—if **any** of these holds:
+
+1. **Explicit description** — They stated a usable spec: purpose, scope, triggers, outputs, constraints, or other concrete detail (more than a bare “create a skill” with no substance).
+2. **Uploaded skill package** — They attached or provided paths to an existing skill folder/zip in the workspace you can read.
+3. **Downloadable skill link** — They gave a URL or repo link to fetch or clone; use retrieved files as the source of truth for requirements.
+
+In those cases, infer gaps from context and sensible defaults; **do not** send a blocking “one question first” message for requirements.
+
+**When the request is still underspecified** (e.g. only “help me create a skill” with no detail and no files/link), ask **one** brief clarification before proceeding. Keep it short; combine at most 2 key unknowns in a single message. End with: *"Or just say 'go' and I'll generate with sensible defaults."*
 
 Pick the most important unknown based on the pattern:
 
@@ -122,6 +162,8 @@ Pick the most important unknown based on the pattern:
 - **Pattern C**: "Any hard boundaries — things the skill must never do?"
 
 Do NOT ask multiple rounds of questions. One message, then proceed — either with the user's answer or with defaults.
+
+**Note:** Skipping requirement questions does **not** skip **Security (required)** or user confirmation when vetting finds non‑LOW risk on an import—those are separate from requirement gathering.
 
 ### Step 3: Plan Reusable Contents
 
@@ -211,7 +253,15 @@ Run the validation script:
 python scripts/quick_validate.py <path-to-skill>
 ```
 
-Fix any errors and re-validate. Then check these quality criteria that the script cannot verify:
+Run the security scan (heuristic; confirm hits in context):
+
+```bash
+python scripts/security_scan.py <path-to-skill>
+```
+
+Fix any errors and re-validate. For skills **authored in chat**, if the scan or manual review finds issues, **edit the skill** to remove or neutralize risk, then re-run both commands until acceptable. For **imported** skills, the user should already have confirmed in Step 0; if new issues appear only after edits, apply the same confirmation rule.
+
+Then check these quality criteria that the script cannot verify:
 
 - [ ] SKILL.md body < 500 lines
 - [ ] `description` contains keywords a user would naturally say (trigger accuracy)
@@ -231,7 +281,7 @@ Fix any errors and re-validate. Then check these quality criteria that the scrip
 - [ ] **Pattern C**: Stop conditions define hard limits that cannot be overridden
 - [ ] **Pattern C**: Risk levels have corresponding actions (not just definitions)
 
-Then deliver the SKILL.md to the user.
+Then deliver the final skill files to the user. For **authored-in-chat** work, the delivered artifact must be the **post-remediation** version (no known HIGH/EXTREME issues left unaddressed).
 
 ### Step 7: Iterate
 
