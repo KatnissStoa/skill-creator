@@ -281,7 +281,16 @@ Then check these quality criteria that the script cannot verify:
 - [ ] **Pattern C**: Stop conditions define hard limits that cannot be overridden
 - [ ] **Pattern C**: Risk levels have corresponding actions (not just definitions)
 
-Then deliver the final skill files to the user. For **authored-in-chat** work, the delivered artifact must be the **post-remediation** version (no known HIGH/EXTREME issues left unaddressed).
+**Delivery package and chat prompt (required):**
+
+- Deliver the finished skill as **one `.zip` archive** (the skill package), not only as a loose folder or file listing, whenever the environment supports offering a downloadable or attachable zip.
+- **One identifier everywhere** — the string must match SKILL.md frontmatter `name`, the workspace folder from `init_skill.py`, the zip file name, the download filename users get, and the **single top-level directory inside the zip** (all the same hyphen-case value, e.g. `meal-planner`):
+  - Zip file on disk / in the attachment: `{name}.zip`
+  - Download / save-as filename: `{name}.zip` (do not use generic names like `skill.zip`, `archive.zip`, or timestamps unless the user asked)
+  - Zip contents layout: `{name}/SKILL.md` plus bundled subfolders under `{name}/` — extracting `{name}.zip` must yield a folder named exactly `{name}`, not a different root folder name, not duplicate nesting like `{name}/{name}/`, and not a flat zip with files at the archive root.
+- In the **same assistant message** that presents the completed skill (zip / card / attachment), include this sentence for the user **verbatim** (English): `Click the card below to try your skill in chat.`
+
+Then deliver the final skill files to the user (as the zip above when applicable). For **authored-in-chat** work, the delivered artifact must be the **post-remediation** version (no known HIGH/EXTREME issues left unaddressed).
 
 ### Step 7: Iterate
 
