@@ -57,6 +57,28 @@ def parse_frontmatter(text):
     return data, None
 
 
+EXECUTION_MODES = frozenset({'inherit', 'fork', 'sandbox'})
+ALLOWED_METADATA_KEYS = frozenset({'execution_mode'})
+
+
+def _normalize_flat_metadata_execution_mode(frontmatter):
+    """Without PyYAML, indented `metadata:` children parse as a top-level `execution_mode` key."""
+    if yaml is not None:
+        return frontmatter
+    ex = frontmatter.get('execution_mode')
+    if not isinstance(ex, str) or ex.strip() not in EXECUTION_MODES:
+        return frontmatter
+    ex = ex.strip()
+    md = frontmatter.get('metadata')
+    if md in (None, ''):
+        frontmatter.pop('execution_mode', None)
+        frontmatter['metadata'] = {'execution_mode': ex}
+    elif isinstance(md, dict) and 'execution_mode' not in md:
+        frontmatter.pop('execution_mode', None)
+        md['execution_mode'] = ex
+    return frontmatter
+
+
 def validate_skill(skill_path):
     skill_path = Path(skill_path).resolve()
 
@@ -68,6 +90,8 @@ def validate_skill(skill_path):
     frontmatter, err = parse_frontmatter(content)
     if err:
         return False, err
+
+    frontmatter = _normalize_flat_metadata_execution_mode(frontmatter)
 
     ALLOWED_KEYS = {'name', 'description', 'license', 'allowed-tools', 'metadata'}
     unexpected = set(frontmatter.keys()) - ALLOWED_KEYS
@@ -101,6 +125,45 @@ def validate_skill(skill_path):
     body = content[content.index('---', 3) + 3:].strip() if content.count('---') >= 2 else ''
     if not body:
         warnings.append("SKILL.md body is empty (no content after frontmatter)")
+
+    meta = frontmatter.get('metadata')
+    if meta is None:
+        warnings.append(
+            "Missing 'metadata' — add `metadata: { execution_mode: inherit|fork|sandbox }` "
+            "(see references/execution-routing.md)"
+        )
+    elif not isinstance(meta, dict):
+        return False, "'metadata' must be a YAML mapping (object)"
+    else:
+        unknown_meta = set(meta.keys()) - ALLOWED_METADATA_KEYS
+        if unknown_meta:
+            return False, (
+                f"Unexpected metadata key(s): {', '.join(sorted(unknown_meta))}. "
+                f"Allowed under metadata: {', '.join(sorted(ALLOWED_METADATA_KEYS))}"
+            )
+        if 'execution_mode' not in meta:
+            warnings.append(
+                "metadata.execution_mode not set — use inherit, fork, or sandbox "
+                "(see references/execution-routing.md)"
+            )
+        else:
+            mode = str(meta['execution_mode']).strip()
+            if mode not in EXECUTION_MODES:
+                return False, (
+                    f"metadata.execution_mode must be one of: "
+                    f"{', '.join(sorted(EXECUTION_MODES))} (got {mode!r})"
+                )
+            scripts_dir = skill_path / 'scripts'
+            if mode == 'inherit' and scripts_dir.is_dir():
+                ext_scripts = [
+                    p for p in scripts_dir.iterdir()
+                    if p.is_file() and p.suffix.lower() in {'.py', '.sh', '.bash'}
+                ]
+                if ext_scripts:
+                    warnings.append(
+                        "metadata.execution_mode is 'inherit' but scripts/ contains executable "
+                        "scripts — consider 'fork' or 'sandbox' per references/execution-routing.md"
+                    )
 
     if warnings:
         return True, "Valid (with warnings):\n  - " + "\n  - ".join(warnings)

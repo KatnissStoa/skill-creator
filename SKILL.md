@@ -2,6 +2,8 @@
 name: skill-creator
 description: Guide for creating or updating skills that extend an agent's capabilities via specialized knowledge, workflows, or tool integrations. For any modification or improvement request, MUST first read this skill and follow its update workflow instead of editing files directly.
 license: Complete terms in LICENSE.txt
+metadata:
+  execution_mode: sandbox
 ---
 
 # Skill authoring
@@ -45,7 +47,7 @@ The context window is a shared resource. Only add context the agent doesn't alre
 
 ```
 skill-name/
-├── SKILL.md (required)       - YAML frontmatter (name + description) + markdown instructions
+├── SKILL.md (required)       - YAML frontmatter (name, description, optional metadata) + markdown instructions
 └── Bundled Resources (optional)
     ├── scripts/              - Executable code (Python/Bash/etc.)
     ├── references/           - Documentation loaded into context as needed
@@ -54,6 +56,7 @@ skill-name/
 ```
 
 - **Frontmatter** fields `name` and `description` determine when the skill triggers. Be clear and comprehensive.
+- **`metadata.execution_mode`** (required for new skills): `inherit` | `fork` | `sandbox` — tells the runtime **where** to execute the skill (parent agent, forked sub-agent session, or sandbox). See **`references/execution-routing.md`** for definitions, decision order, boundaries, and the **skill-authoring rule**. **`inherit`** is the usual default for lightweight, in-place guidance; **`fork`** is for sub-session isolation and tool/model policy; **`sandbox`** is for execution/filesystem/untrusted-input and artifact risk—not interchangeable with `fork`. **This skill (`skill-creator`) uses `sandbox`:** creating or adopting skills entails scaffolding files, running validators/scanners, and may process imports—see **Execution mode (skill authoring)** in `references/execution-routing.md`.
 - **Body** loads only after triggering. Keep under 500 lines.
 - **`scripts/`** — token efficient, runs without loading into context
 - **`references/`** — loaded as needed. For large files (>10k words), include grep patterns in SKILL.md
@@ -119,7 +122,7 @@ All paths in the steps below (e.g. `scripts/init_skill.py`, `references/workflow
 
 1. **Route** — identify the design pattern
 2. **Understand** — gather concrete examples from the user’s description and/or from supplied files or fetched content (see Step 2); skip extra requirement questions when already specified
-3. **Plan** — decide reusable contents based on the pattern
+3. **Plan** — decide reusable contents based on the pattern, and set **`metadata.execution_mode`** using **`references/execution-routing.md`** (sandbox first, then fork vs inherit)
 4. **Initialize** — scaffold the skill
 5. **Edit** — implement resources and write SKILL.md
 6. **Validate** — run checks and deliver
@@ -182,6 +185,12 @@ Do NOT ask multiple rounds of questions. One message, then proceed — either wi
 
 **Pattern C** — Plan SKILL.md sections in this order: trigger conditions → non-trigger conditions → confirmation gates → stop conditions → risk levels → workflow. Plan references organized by branch (not by topic).
 
+**Execution mode (all patterns)** — After pattern selection, assign **`metadata.execution_mode`** before writing the body:
+
+1. Apply the **sandbox** checklist in `references/execution-routing.md`; if any item matches, use **`sandbox`**.
+2. If not sandbox, apply **fork** motivations (session/token isolation, task-side skill delivery, different tools/model/limits, session boundary); if any match, use **`fork`**.
+3. Otherwise use **`inherit`** (default for simple, in-place skills).
+
 ### Step 4: Initialize the Skill
 
 Skip if the skill already exists and only needs iteration.
@@ -237,7 +246,7 @@ Consult these based on your needs:
 1. Build `scripts/`, `references/`, `templates/`, `examples/` identified in Step 3
 2. Test scripts to ensure correctness
 3. Delete unused example files from initialization
-4. Write SKILL.md frontmatter (`name` + `description` — the trigger mechanism)
+4. Write SKILL.md frontmatter (`name`, `description`, and **`metadata.execution_mode`** — see `references/execution-routing.md`)
    - `description` must cover both **WHAT** (capability) and **WHEN** (trigger scenarios):
      - Good: `"PDF form filling and field extraction. Use for: filling fillable PDFs, reading form field values, batch processing PDF forms."`
      - Bad: `"Helps with PDF stuff."`
@@ -268,6 +277,7 @@ Then check these quality criteria that the script cannot verify:
 - [ ] Terminology is consistent across SKILL.md and reference files
 - [ ] All file references from SKILL.md are one level deep (no nested refs)
 - [ ] No tool/library choices left ambiguous — give a default, add escape hatch only for exceptions
+- [ ] `metadata.execution_mode` is set and matches `references/execution-routing.md` (sandbox overrides fork/inherit when any sandbox criterion applies)
 
 **Pattern-specific checks:**
 

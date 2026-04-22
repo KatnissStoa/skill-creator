@@ -47,6 +47,10 @@ Summarize:
 - Is network access required? To which endpoints and why?
 - Is the scope **minimal** for the stated purpose?
 
+### Execution mode (authoring)
+
+After vetting, set `metadata.execution_mode` per `references/execution-routing.md`. Broad filesystem access, network execution, installs, or untrusted inputs typically require **`sandbox`**, not **`fork`** alone—`fork` addresses session and prompt/tool policy isolation, not OS-level execution safety.
+
 ## Step 4 — Risk classification
 
 | Level | Typical signals | Action |

@@ -17,6 +17,8 @@ from pathlib import Path
 PATTERN_A_SKILL = """---
 name: {skill_name}
 description: "[TODO: What this skill does and WHEN to use it. Include trigger keywords users would naturally say.]"
+metadata:
+  execution_mode: inherit
 ---
 
 # {skill_title}
@@ -54,6 +56,8 @@ See [references/shared-principles.md](references/shared-principles.md) for rules
 PATTERN_B_SKILL = """---
 name: {skill_name}
 description: "[TODO: What this skill does and WHEN to use it. Include trigger keywords users would naturally say.]"
+metadata:
+  execution_mode: fork
 ---
 
 # {skill_title}
@@ -99,6 +103,8 @@ Before delivering results, verify:
 PATTERN_C_SKILL = """---
 name: {skill_name}
 description: "[TODO: What this skill does and WHEN to use it. Include trigger keywords users would naturally say.]"
+metadata:
+  execution_mode: fork
 ---
 
 # {skill_title}
@@ -255,7 +261,8 @@ def init_skill(skill_name, pattern, output_dir):
     label = PATTERN_LABELS[pattern]
     print(f"Skill '{skill_name}' created at {skill_dir}")
     print(f"Design pattern: {label}")
-    print("Next: edit SKILL.md, customize or delete placeholder files, then run quick_validate.py")
+    print("Next: edit SKILL.md (set metadata.execution_mode per references/execution-routing.md),")
+    print("      customize or delete placeholder files, then run quick_validate.py")
     return skill_dir
 
 
